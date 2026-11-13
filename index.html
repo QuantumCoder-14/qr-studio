@@ -165,6 +165,7 @@
     display:block;font-family:var(--font-mono);font-size:11.5px;line-height:1.5;
     color:var(--ink-soft);background:var(--paper);border:1px solid var(--line-soft);
     border-radius:6px;padding:9px 10px;word-break:break-all;max-height:92px;overflow:auto;
+    white-space:pre-wrap;
   }
   .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}
   .actions .wide{grid-column:1/-1}
@@ -218,6 +219,8 @@
           <button class="tab" role="tab" id="tab-wifi" aria-selected="false" aria-controls="pane-wifi">Wi-Fi<span class="hint">join without typing</span></button>
           <button class="tab" role="tab" id="tab-link" aria-selected="false" aria-controls="pane-link">Link<span class="hint">clean of trackers</span></button>
           <button class="tab" role="tab" id="tab-text" aria-selected="false" aria-controls="pane-text">Text<span class="hint">anything</span></button>
+          <button class="tab" role="tab" id="tab-contact" aria-selected="false" aria-controls="pane-contact">Contact<span class="hint">vCard</span></button>
+          <button class="tab" role="tab" id="tab-event" aria-selected="false" aria-controls="pane-event">Event<span class="hint">calendar</span></button>
         </div>
 
         <!-- UPI -->
@@ -291,6 +294,81 @@
             <textarea id="text-body" placeholder="Any text, address, phone number, vCard, or a message for whoever scans it."></textarea>
             <p class="note"><span id="text-len">0</span> characters. Very long text makes a dense code that phones struggle to read.</p>
           </div>
+        </div>
+
+        <!-- Contact (vCard) -->
+        <div class="pane" id="pane-contact" role="tabpanel" aria-labelledby="tab-contact">
+          <div class="row">
+            <div class="field">
+              <label for="vc-first">First name</label>
+              <input type="text" id="vc-first" placeholder="Siddhant" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="vc-last">Last name <span class="sub">optional</span></label>
+              <input type="text" id="vc-last" placeholder="Neekhra" autocomplete="off">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="vc-phone">Phone <span class="sub">optional</span></label>
+              <input type="text" id="vc-phone" placeholder="+91 98765 43210" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="vc-email">Email <span class="sub">optional</span></label>
+              <input type="text" id="vc-email" placeholder="you@example.com" autocomplete="off">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="vc-org">Organisation <span class="sub">optional</span></label>
+              <input type="text" id="vc-org" placeholder="Company or school" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="vc-title">Job title <span class="sub">optional</span></label>
+              <input type="text" id="vc-title" placeholder="Developer" autocomplete="off">
+            </div>
+          </div>
+          <div class="field">
+            <label for="vc-website">Website <span class="sub">optional</span></label>
+            <input type="text" id="vc-website" placeholder="https://github.com/S-procoder" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="vc-address">Address <span class="sub">optional, one line</span></label>
+            <input type="text" id="vc-address" placeholder="Pune, Maharashtra" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="vc-note">Note <span class="sub">optional</span></label>
+            <input type="text" id="vc-note" placeholder="Met at the robotics meetup" autocomplete="off">
+          </div>
+          <p class="note">Scanning this offers "Add contact". No photo is embedded, so the code stays small and scannable.</p>
+        </div>
+
+        <!-- Event (.ics) -->
+        <div class="pane" id="pane-event" role="tabpanel" aria-labelledby="tab-event">
+          <div class="field">
+            <label for="ev-title">Event name</label>
+            <input type="text" id="ev-title" placeholder="Robotics meetup" autocomplete="off">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="ev-start">Starts</label>
+              <input type="datetime-local" id="ev-start">
+            </div>
+            <div class="field">
+              <label for="ev-end">Ends <span class="sub">optional</span></label>
+              <input type="datetime-local" id="ev-end">
+            </div>
+          </div>
+          <div class="err" id="err-ev">The end time must be after the start time.</div>
+          <div class="field">
+            <label for="ev-loc">Location <span class="sub">optional</span></label>
+            <input type="text" id="ev-loc" placeholder="COEP, Pune" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="ev-desc">Description <span class="sub">optional</span></label>
+            <input type="text" id="ev-desc" placeholder="Bring your board" autocomplete="off">
+          </div>
+          <p class="note">Times are written as local time, so the calendar app puts the event in the scanner's own timezone.</p>
         </div>
 
         <!-- shared options -->
@@ -468,6 +546,70 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
   function buildText(o) {
     return String(o.text || '');
   }
+  function vcardEscape(v) {
+    return String(v == null ? '' : v)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+
+  function buildVCard(o) {
+    var first = String(o.first || '').trim();
+    var last = String(o.last || '').trim();
+    if (!first && !last) return '';
+    var full = (first + ' ' + last).trim();
+    var lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+    lines.push('N:' + vcardEscape(last) + ';' + vcardEscape(first) + ';;;');
+    lines.push('FN:' + vcardEscape(full));
+    if (o.org) lines.push('ORG:' + vcardEscape(o.org));
+    if (o.title) lines.push('TITLE:' + vcardEscape(o.title));
+    if (o.phone) lines.push('TEL;TYPE=CELL:' + vcardEscape(o.phone));
+    if (o.email) lines.push('EMAIL;TYPE=INTERNET:' + vcardEscape(o.email));
+    if (o.website) lines.push('URL:' + vcardEscape(o.website));
+    if (o.address) lines.push('ADR;TYPE=HOME:;;' + vcardEscape(o.address) + ';;;;');
+    if (o.note) lines.push('NOTE:' + vcardEscape(o.note));
+    lines.push('END:VCARD');
+    return lines.join('\r\n');
+  }
+
+  function hashString(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) { h = ((h << 5) + h + str.charCodeAt(i)) | 0; }
+    return Math.abs(h).toString(36);
+  }
+
+  function icsEscape(v) {
+    return String(v == null ? '' : v)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+
+  function icsDate(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(String(value || '').trim());
+    if (!m) return '';
+    return m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + (m[6] || '00');
+  }
+
+  function buildEvent(o) {
+    var title = String(o.title || '').trim();
+    if (!title) return '';
+    var start = icsDate(o.start);
+    if (!start) return '';
+    var end = icsDate(o.end);
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//QR Studio//EN', 'BEGIN:VEVENT'];
+    lines.push('UID:qrs-' + start + '-' + hashString(title) + '@qrstudio');
+    lines.push('DTSTAMP:' + start + 'Z');
+    lines.push('DTSTART:' + start);
+    if (end) lines.push('DTEND:' + end);
+    lines.push('SUMMARY:' + icsEscape(title));
+    if (o.location) lines.push('LOCATION:' + icsEscape(o.location));
+    if (o.description) lines.push('DESCRIPTION:' + icsEscape(o.description));
+    lines.push('END:VEVENT', 'END:VCALENDAR');
+    return lines.join('\r\n');
+  }
   // PAYLOAD_BUILDERS>>
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -511,6 +653,19 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
       }
       return built.text;
     }
+    if (mode === 'contact') {
+      return buildVCard({
+        first: val('vc-first'), last: val('vc-last'), phone: val('vc-phone'),
+        email: val('vc-email'), org: val('vc-org'), title: val('vc-title'),
+        website: val('vc-website'), address: val('vc-address'), note: val('vc-note')
+      });
+    }
+    if (mode === 'event') {
+      return buildEvent({
+        title: val('ev-title'), location: val('ev-loc'),
+        start: val('ev-start'), end: val('ev-end'), description: val('ev-desc')
+      });
+    }
     return buildText({ text: val('text-body') });
   }
 
@@ -542,6 +697,10 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
       $('err-amount').classList.toggle('on', val('upi-amount') !== '' && (isNaN(amt) || amt <= 0));
     }
     if (mode === 'text') { $('text-len').textContent = val('text-body').length; }
+    if (mode === 'event') {
+      var st = val('ev-start'), en = val('ev-end');
+      $('err-ev').classList.toggle('on', !!(st && en && en <= st));
+    }
 
     if (!text) {
       emptyBox.classList.remove('off');
@@ -702,7 +861,9 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
     ['tab-upi', 'upi', 'pane-upi'],
     ['tab-wifi', 'wifi', 'pane-wifi'],
     ['tab-link', 'link', 'pane-link'],
-    ['tab-text', 'text', 'pane-text']
+    ['tab-text', 'text', 'pane-text'],
+    ['tab-contact', 'contact', 'pane-contact'],
+    ['tab-event', 'event', 'pane-event']
   ];
 
   tabs.forEach(function (t) {
@@ -724,7 +885,9 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
   }
 
   ['upi-vpa','upi-name','upi-amount','upi-note','wifi-ssid','wifi-pass','wifi-sec',
-   'link-url','text-body','opt-ec','opt-margin','opt-fg','opt-bg'].forEach(function (id) {
+   'link-url','text-body','opt-ec','opt-margin','opt-fg','opt-bg',
+   'vc-first','vc-last','vc-phone','vc-email','vc-org','vc-title','vc-website','vc-address','vc-note',
+   'ev-title','ev-loc','ev-start','ev-end','ev-desc'].forEach(function (id) {
     var el = $(id);
     if (el) { el.addEventListener('input', schedule); el.addEventListener('change', schedule); }
   });
