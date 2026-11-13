@@ -6,8 +6,8 @@ qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
 const html = fs.readFileSync('index.html', 'utf8');
 const m = html.match(/\/\/ <<PAYLOAD_BUILDERS([\s\S]*?)\/\/ PAYLOAD_BUILDERS>>/);
 if (!m) { console.error('BUILDERS BLOCK NOT FOUND'); process.exit(1); }
-const api = new Function(m[1] + '; return {buildUpi,buildWifi,buildLink,buildText,stripTracking,isValidVpa,wifiEscape};')();
-const {buildUpi, buildWifi, buildLink, buildText, isValidVpa} = api;
+const api = new Function(m[1] + '; return {buildUpi,buildWifi,buildLink,buildText,stripTracking,isValidVpa,wifiEscape,buildVCard,buildEvent,icsDate};')();
+const {buildUpi, buildWifi, buildLink, buildText, isValidVpa, buildVCard, buildEvent, icsDate} = api;
 
 let fails = 0;
 function eq(name, got, want) {
@@ -56,6 +56,43 @@ eq('empty link', buildLink({url:'', strip:true}).text, '');
 // ---- Text ----
 eq('text passthrough', buildText({text:'  hello  '}), '  hello  ');
 
+
+// ---- vCard ----
+const VC_FULL = [
+  'BEGIN:VCARD','VERSION:3.0','N:Neekhra;Siddhant;;;','FN:Siddhant Neekhra',
+  'ORG:S-procoder','TITLE:Developer','TEL;TYPE=CELL:+91 98765 43210',
+  'EMAIL;TYPE=INTERNET:sid@example.com','URL:https://github.com/S-procoder',
+  'ADR;TYPE=HOME:;;Pune\\, Maharashtra;;;;','NOTE:Met at meetup','END:VCARD'
+].join('\r\n');
+eq('vcard full', buildVCard({first:'Siddhant', last:'Neekhra', phone:'+91 98765 43210',
+   email:'sid@example.com', org:'S-procoder', title:'Developer',
+   website:'https://github.com/S-procoder', address:'Pune, Maharashtra', note:'Met at meetup'}), VC_FULL);
+eq('vcard first only', buildVCard({first:'Sid'}),
+   ['BEGIN:VCARD','VERSION:3.0','N:;Sid;;;','FN:Sid','END:VCARD'].join('\r\n'));
+eq('vcard last only', buildVCard({last:'Neekhra'}),
+   ['BEGIN:VCARD','VERSION:3.0','N:Neekhra;;;;','FN:Neekhra','END:VCARD'].join('\r\n'));
+eq('vcard empty', buildVCard({}), '');
+eq('vcard escapes semicolon+comma', buildVCard({first:'A;B,C'}),
+   ['BEGIN:VCARD','VERSION:3.0','N:;A\\;B\\,C;;;','FN:A\\;B\\,C','END:VCARD'].join('\r\n'));
+eq('vcard escapes newline', buildVCard({first:'A', note:'line1\nline2'}),
+   ['BEGIN:VCARD','VERSION:3.0','N:;A;;;','FN:A','NOTE:line1\\nline2','END:VCARD'].join('\r\n'));
+eq('vcard unicode', buildVCard({first:'सिद्धांत'}).indexOf('FN:सिद्धांत') > -1, true);
+
+// ---- Event (.ics) ----
+eq('icsDate basic', icsDate('2026-11-20T18:30'), '20261120T1830' + '00');
+eq('icsDate seconds', icsDate('2026-11-20T18:30:45'), '20261120T183045');
+eq('icsDate bad', icsDate('20-11-2026 18:30'), '');
+const EV = buildEvent({title:'Robotics meetup', location:'COEP, Pune',
+  start:'2026-11-20T18:30', end:'2026-11-20T20:00', description:'Bring your board'});
+eq('event has DTSTART', EV.indexOf('DTSTART:20261120T183000') > -1, true);
+eq('event has DTEND', EV.indexOf('DTEND:20261120T200000') > -1, true);
+eq('event escapes comma in location', EV.indexOf('LOCATION:COEP\\, Pune') > -1, true);
+eq('event opens and closes', EV.startsWith('BEGIN:VCALENDAR') && EV.endsWith('END:VCALENDAR'), true);
+eq('event no end time', buildEvent({title:'X', start:'2026-11-20T18:30'}).indexOf('DTEND') === -1, true);
+eq('event empty title', buildEvent({start:'2026-11-20T18:30'}), '');
+eq('event missing start', buildEvent({title:'X'}), '');
+eq('event stable uid', buildEvent({title:'X', start:'2026-11-20T18:30'}) === buildEvent({title:'X', start:'2026-11-20T18:30'}), true);
+
 // ---- QR encoding + matrix dump for decode test ----
 const cases = [
   ['upi', buildUpi({vpa:'sid@okhdfcbank', name:'Siddhant Neekhra', amount:'250', note:'Chai & samosa'})],
@@ -63,7 +100,10 @@ const cases = [
   ['wifi', buildWifi({ssid:'Home;Net', password:'pa:ss"word', security:'WPA', hidden:false})],
   ['link', buildLink({url:'https://example.com/p?utm_source=x&id=5&fbclid=abc', strip:true}).text],
   ['text', 'नमस्ते दुनिया — QR Studio test'],
-  ['text-long', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(4)]
+  ['text-long', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(4)],
+  ['vcard', VC_FULL],
+  ['vcard-unicode', buildVCard({first:'सिद्धांत', last:'नीखरा', phone:'+91 98765 43210', email:'sid@example.com'})],
+  ['event', EV]
 ];
 const out = [];
 for (const [name, text] of cases) {
