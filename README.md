@@ -45,7 +45,7 @@ Every mode gives you:
 1. Create a public repo, e.g. `qr-studio`.
 2. Add `index.html` (and optionally `README.md`, `LICENSE.md`, `test/`).
 3. Settings → Pages → Source: *Deploy from a branch*, Branch: `main`, folder `/ (root)`.
-4. It is live at `https://s-procoder.github.io/qr-studio/`.
+4. It is live at `https://quantumcoder-14.github.io/qr-studio/`.
 
 ---
 
