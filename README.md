@@ -5,6 +5,8 @@
 One HTML file. No server, no account, no build step. Your UPI ID, your Wi-Fi password and
 whatever you type stay on your device, because there is nothing to send them to.
 
+**[Live at s-procoder.github.io/qr-studio](https://s-procoder.github.io/qr-studio/)** - nothing to install, nothing to sign up for.
+
 Most "free QR generator" sites are ad pages that log what you encode. A UPI QR contains
 your payment handle, and a Wi-Fi QR contains your password in plain text. Those are two
 things you should not be pasting into someone else's server.
