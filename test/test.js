@@ -1,5 +1,22 @@
 const fs = require('fs');
-const qrcode = require('./qrcode.min.js');
+const path = require('path');
+
+// The QR library is not committed: it is either vendored next to the repo root,
+// or installed by npm. Look in both places so `node test/test.js` works from a
+// fresh clone after `npm install qrcode-generator@1.4.4`.
+function loadQrcode() {
+  const candidates = [
+    path.join(__dirname, '..', 'qrcode.min.js'),
+    path.join(__dirname, 'qrcode.min.js'),
+    path.join(__dirname, '..', 'node_modules', 'qrcode-generator', 'qrcode.js'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return require(candidate);
+  }
+  console.error('QR library not found. Run: npm install qrcode-generator@1.4.4');
+  process.exit(1);
+}
+const qrcode = loadQrcode();
 qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
 
 // extract the exact builder code that ships in the page
@@ -60,13 +77,13 @@ eq('text passthrough', buildText({text:'  hello  '}), '  hello  ');
 // ---- vCard ----
 const VC_FULL = [
   'BEGIN:VCARD','VERSION:3.0','N:Neekhra;Siddhant;;;','FN:Siddhant Neekhra',
-  'ORG:S-procoder','TITLE:Developer','TEL;TYPE=CELL:+91 98765 43210',
-  'EMAIL;TYPE=INTERNET:sid@example.com','URL:https://github.com/S-procoder',
+  'ORG:QuantumCoder-14','TITLE:Developer','TEL;TYPE=CELL:+91 98765 43210',
+  'EMAIL;TYPE=INTERNET:sid@example.com','URL:https://github.com/QuantumCoder-14',
   'ADR;TYPE=HOME:;;Pune\\, Maharashtra;;;;','NOTE:Met at meetup','END:VCARD'
 ].join('\r\n');
 eq('vcard full', buildVCard({first:'Siddhant', last:'Neekhra', phone:'+91 98765 43210',
-   email:'sid@example.com', org:'S-procoder', title:'Developer',
-   website:'https://github.com/S-procoder', address:'Pune, Maharashtra', note:'Met at meetup'}), VC_FULL);
+   email:'sid@example.com', org:'QuantumCoder-14', title:'Developer',
+   website:'https://github.com/QuantumCoder-14', address:'Pune, Maharashtra', note:'Met at meetup'}), VC_FULL);
 eq('vcard first only', buildVCard({first:'Sid'}),
    ['BEGIN:VCARD','VERSION:3.0','N:;Sid;;;','FN:Sid','END:VCARD'].join('\r\n'));
 eq('vcard last only', buildVCard({last:'Neekhra'}),
