@@ -1,11 +1,9 @@
 # QR Studio
 
-**QR codes for UPI payments, Wi-Fi networks and links — generated entirely in your browser.**
+**QR codes for UPI payments, Wi-Fi networks, links, contact cards and calendar events — generated entirely in your browser.**
 
 One HTML file. No server, no account, no build step. Your UPI ID, your Wi-Fi password and
 whatever you type stay on your device, because there is nothing to send them to.
-
-**[Live at s-procoder.github.io/qr-studio](https://s-procoder.github.io/qr-studio/)** - nothing to install, nothing to sign up for.
 
 Most "free QR generator" sites are ad pages that log what you encode. A UPI QR contains
 your payment handle, and a Wi-Fi QR contains your password in plain text. Those are two
@@ -20,7 +18,9 @@ things you should not be pasting into someone else's server.
 | **UPI payment** | `upi://pay?pa=…&pn=…&am=…&cu=INR&tn=…` | Amount optional, so payers choose. Payee name shows in their app. |
 | **Wi-Fi** | `WIFI:T:WPA;S:ssid;P:password;H:true;;` | WPA / WEP / open, hidden networks, correct escaping of `\ ; , : "` |
 | **Link** | Any URL | Optional removal of 50+ tracking parameters (`utm_*`, `fbclid`, `igshid`, `gclid`…) with a count of what went |
-| **Text** | Anything | Free text, addresses, phone numbers, vCards |
+| **Contact** | `BEGIN:VCARD…END:VCARD` (vCard 3.0) | Name, phone, email, org, title, website, address, note. Scanning offers "Add contact". |
+| **Event** | `BEGIN:VCALENDAR…END:VCALENDAR` (`.ics`) | Title, start, optional end, location, description. Floating local time, so it lands in the scanner's timezone. |
+| **Text** | Anything | Free text, addresses, phone numbers, messages |
 
 Every mode gives you:
 
@@ -74,7 +74,7 @@ end to end:
 
 ```bash
 npm install qrcode-generator@1.4.4
-node test/test.js          # 23 assertions on the payload strings
+node test/test.js          # 41 assertions on the payload strings
 ```
 
 The builders are extracted from the shipped `index.html` itself, so the tests exercise the
@@ -83,12 +83,15 @@ OpenCV**, comparing the decoded string to the original — including a Devanagar
 prove UTF-8 is not mangled:
 
 ```
-ok   upi           41x41 modules
-ok   upi-unicode   61x61 modules
-ok   wifi          29x29 modules
-ok   link          25x25 modules
-ok   text          33x33 modules
-ok   text-long     61x61 modules
+ok   upi             41x41 modules
+ok   upi-unicode     61x61 modules
+ok   wifi            29x29 modules
+ok   link            25x25 modules
+ok   text            33x33 modules
+ok   text-long       61x61 modules
+ok   vcard           65x65 modules
+ok   vcard-unicode   57x57 modules
+ok   event           65x65 modules
 ```
 
 That round trip caught one real bug during development: the library's default byte encoder
@@ -110,6 +113,10 @@ truncates non-ASCII (`ह` became byte 57), so the UTF-8 encoder is now wired in
   The tool says so rather than silently producing an unscannable image.
 - **Not a payment processor.** This page cannot receive money, see payments, or verify a UPI
   ID exists. It only draws the string your UPI app would have built.
+- **Contact and event codes are dense.** A full vCard or a described event lands around 60-65
+  modules. Still readable on a modern phone, but print them larger rather than smaller.
+- **No photos or timezone blocks are embedded.** A vCard with a photo, or an `.ics` with a
+  `VTIMEZONE`, would be several times the size and fail on cheap scanners.
 - **Colours are your risk.** High-contrast dark-on-light scans best; the warning appears when
   contrast drops below a 3:1 ratio, but printing is on you.
 
@@ -117,7 +124,6 @@ truncates non-ASCII (`ह` became byte 57), so the UTF-8 encoder is now wired in
 
 ## Roadmap
 
-- vCard and event (`.ics`) modes
 - Batch export: a sheet of QR labels for printing
 - Optional logo in the centre, with error correction raised automatically to compensate
 - Remember last-used mode and colours in `localStorage` (local only, never transmitted)
